@@ -1,116 +1,108 @@
 package frc.robot.commands;
 
-import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.Constants;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.DriveConstants;
-import frc.robot.Constants.OIConstants;
-import frc.robot.RobotContainer;
+import frc.robot.Constants.HeadingHoldConstants;
+import frc.robot.Constants.InputConstants;
 import frc.robot.subsystems.Odometry;
 import frc.robot.subsystems.Swerve;
+import frc.robot.util.HeadingHold;
+import frc.robot.util.InputShaper;
 import java.util.function.Supplier;
 
+/**
+ * Driver teleop: input shaping, heading hold, and field/robot-oriented drive.
+ */
 public class SwerveTeleOp extends Command {
 	private final Swerve swerve;
 	private final Odometry odometry;
-	private final Supplier<Boolean> rightBumper, xButton, bButton, yButton, aButton;
-	private final Supplier<Double> xSpdFunction, ySpdFunction, turningSpdFunction;
-	private final SlewRateLimiter xLimiter, yLimiter, turningLimiter;
+	private final CommandXboxController driver;
+	private final Supplier<Double> xSpdFunction;
+	private final Supplier<Double> ySpdFunction;
+	private final Supplier<Double> turningSpdFunction;
+	private final Supplier<Boolean> slowMode;
+	private final SlewRateLimiter xLimiter;
+	private final SlewRateLimiter yLimiter;
+	private final SlewRateLimiter turningLimiter;
+	private final HeadingHold headingHold;
 
-	public SwerveTeleOp(Swerve swerve, Odometry odometry, Supplier<Double> xSpdFunction, Supplier<Double> ySpdFunction,
-			Supplier<Double> turningSpdFunction, Supplier<Boolean> rightBumper, Supplier<Boolean> xButton,
-			Supplier<Boolean> bButton, Supplier<Boolean> yButton, Supplier<Boolean> aButton) {
+	private boolean robotOriented = false;
+
+	public SwerveTeleOp(Swerve swerve, Odometry odometry, CommandXboxController driver, Supplier<Double> xSpdFunction,
+			Supplier<Double> ySpdFunction, Supplier<Double> turningSpdFunction, Supplier<Boolean> slowMode) {
 		this.swerve = swerve;
 		this.odometry = odometry;
+		this.driver = driver;
 		this.xSpdFunction = xSpdFunction;
 		this.ySpdFunction = ySpdFunction;
 		this.turningSpdFunction = turningSpdFunction;
-		this.rightBumper = rightBumper;
-		this.xButton = xButton;
-		this.bButton = bButton;
-		this.yButton = yButton;
-		this.aButton = aButton;
-		this.xLimiter = new SlewRateLimiter(DriveConstants.kTeleDriveMaxAccelerationUnitsPerSecond);
-		this.yLimiter = new SlewRateLimiter(DriveConstants.kTeleDriveMaxAccelerationUnitsPerSecond);
-		this.turningLimiter = new SlewRateLimiter(DriveConstants.kTeleDriveMaxAngularAccelerationUnitsPerSecond);
+		this.slowMode = slowMode;
+
+		xLimiter = new SlewRateLimiter(DriveConstants.kTeleDriveMaxAccelerationUnitsPerSecond);
+		yLimiter = new SlewRateLimiter(DriveConstants.kTeleDriveMaxAccelerationUnitsPerSecond);
+		turningLimiter = new SlewRateLimiter(DriveConstants.kTeleDriveMaxAngularAccelerationUnitsPerSecond);
+		headingHold = new HeadingHold(HeadingHoldConstants.kP, HeadingHoldConstants.kI, HeadingHoldConstants.kD);
 
 		addRequirements(swerve);
 	}
 
 	@Override
 	public void initialize() {
+		headingHold.reset();
 	}
 
 	@Override
 	public void execute() {
-		double xSpeed = xSpdFunction.get();
-		double ySpeed = ySpdFunction.get();
-		double turningSpeed = turningSpdFunction.get();
+		double xSpeed = InputShaper.shape(xSpdFunction.get(), InputConstants.kTranslationDeadband,
+				InputConstants.kExpo);
+		double ySpeed = InputShaper.shape(ySpdFunction.get(), InputConstants.kTranslationDeadband,
+				InputConstants.kExpo);
+		double turningSpeed = InputShaper.shape(turningSpdFunction.get(), InputConstants.kRotationDeadband,
+				InputConstants.kExpo);
 
-		xSpeed *= (xSpeed > 0) ? (1.0 / 0.8) : (1.0 / 0.9);
-		ySpeed *= (1.0 / 0.9);
-
-		if (Math.abs(xSpeed) < OIConstants.kDeadband) {
-			xSpeed = 0;
-		}
-		if (Math.abs(ySpeed) < OIConstants.kDeadband) {
-			ySpeed = 0;
-		}
-		turningSpeed = Math.abs(turningSpeed) > OIConstants.kDeadband ? turningSpeed : 0;
-
-		if (rightBumper.get()) {
-			RobotContainer.getDriverJoystick().setRumble(RumbleType.kRightRumble, 0.025);
-			xSpeed *= 0.25;
-			ySpeed *= 0.25;
-			turningSpeed *= 0.25;
+		if (slowMode.get()) {
+			xSpeed *= InputConstants.kSlowModeScale;
+			ySpeed *= InputConstants.kSlowModeScale;
+			turningSpeed *= InputConstants.kSlowModeScale;
+			driver.getHID().setRumble(RumbleType.kRightRumble, 0.025);
 		} else {
-			RobotContainer.getDriverJoystick().setRumble(RumbleType.kBothRumble, 0);
+			driver.getHID().setRumble(RumbleType.kBothRumble, 0);
 		}
-
-		xSpeed = MathUtil.clamp(xSpeed, -1, 1);
-		ySpeed = MathUtil.clamp(ySpeed, -1, 1);
-		turningSpeed = MathUtil.clamp(turningSpeed, -1, 1);
-
-		// double teleMaxSpeed = Lights.getInstance().isDemo
-		// ? DriveConstants.kDemoTeleDriveMaxSpeedMetersPerSecond
-		// : DriveConstants.kTeleDriveMaxSpeedMetersPersecond;
-		// double teleMaxAngularSpeed = Lights.getInstance().isDemo?
-		// DriveConstants.kDemoTeleDriveMaxAngularSpeedRadiansPerSecond
-		// : DriveConstants.kTeleDriveMaxAngularSpeedRadiansPerSecond;
 
 		xSpeed = xLimiter.calculate(xSpeed) * DriveConstants.kTeleDriveMaxSpeedMetersPerSecond;
 		ySpeed = yLimiter.calculate(ySpeed) * DriveConstants.kTeleDriveMaxSpeedMetersPerSecond;
 		turningSpeed = turningLimiter.calculate(turningSpeed)
 				* DriveConstants.kTeleDriveMaxAngularSpeedRadiansPerSecond;
 
-		ChassisSpeeds chassisSpeeds;
-		if (Constants.fieldOriented) {
-			chassisSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(xSpeed, ySpeed, turningSpeed,
-					odometry.getGyrometerHeading());
-		} else {
-			chassisSpeeds = new ChassisSpeeds(xSpeed, ySpeed, turningSpeed);
-		}
+		turningSpeed = headingHold.update(odometry.getGyrometerHeading(), Math.hypot(xSpeed, ySpeed), turningSpeed);
 
-		if (xButton.get()) {
-			chassisSpeeds = DriveConstants.kXChassisSpeeds;
-		} else if (bButton.get()) {
-			chassisSpeeds = DriveConstants.kBChassisSpeeds;
-		} else if (yButton.get()) {
-			chassisSpeeds = DriveConstants.kYChassisSpeeds;
-		}
+		ChassisSpeeds chassisSpeeds = robotOriented
+				? new ChassisSpeeds(xSpeed, ySpeed, turningSpeed)
+				: ChassisSpeeds.fromFieldRelativeSpeeds(xSpeed, ySpeed, turningSpeed, odometry.getGyrometerHeading());
 
-		if (aButton.get()) {
-			swerve.setModuleStates(DriveConstants.kCrossModuleStates);
-		} else {
-			swerve.setModuleStates(chassisSpeeds);
-		}
+		swerve.setModuleStates(chassisSpeeds);
 	}
 
 	@Override
 	public void end(boolean interrupted) {
 		swerve.stopModules();
+		headingHold.reset();
+	}
+
+	public void toggleRobotOriented() {
+		robotOriented = !robotOriented;
+		headingHold.reset();
+	}
+
+	public void resetHeadingHold() {
+		headingHold.reset();
+	}
+
+	public boolean isRobotOriented() {
+		return robotOriented;
 	}
 }
