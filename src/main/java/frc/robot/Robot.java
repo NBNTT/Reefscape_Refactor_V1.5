@@ -17,7 +17,8 @@ public class Robot extends LoggedRobot {
 
 		switch (Constants.currentMode) {
 			case REAL -> {
-				Logger.addDataReceiver(new WPILOGWriter("/U/logs/"));
+				new File("/home/lvuser/logs").mkdirs();
+				Logger.addDataReceiver(new WPILOGWriter("/home/lvuser/logs/"));
 				Logger.addDataReceiver(new NT4Publisher());
 			}
 			case SIM -> {

@@ -3,14 +3,17 @@ package frc.robot.util;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
-import frc.robot.Constants.HeadingHoldConstants;
+import frc.robot.Constants.CardinalLockConstants;
 
-/** Holds the current heading while the driver translates without rotating. */
-public class HeadingHold {
+/**
+ * Holds the heading captured when the driver starts translating without
+ * rotating.
+ */
+public class CardinalLock {
 	private final PIDController pid;
 	private Double targetRadians;
 
-	public HeadingHold(double kP, double kI, double kD) {
+	public CardinalLock(double kP, double kI, double kD) {
 		pid = new PIDController(kP, kI, kD);
 		pid.enableContinuousInput(-Math.PI, Math.PI);
 	}
@@ -25,16 +28,18 @@ public class HeadingHold {
 	 * @return angular velocity command
 	 */
 	public double update(Rotation2d currentHeading, double translationSpeedMps, double rotationInputRadPerSec) {
-		if (Math.abs(rotationInputRadPerSec) > HeadingHoldConstants.kRotationDeadband) {
+		if (Math.abs(rotationInputRadPerSec) > CardinalLockConstants.kRotationDeadband) {
 			reset();
 			return rotationInputRadPerSec;
 		}
 
-		if (translationSpeedMps < HeadingHoldConstants.kMinTranslationSpeedMps) {
+		if (translationSpeedMps < CardinalLockConstants.kMinTranslationSpeedMps) {
 			reset();
 			return 0.0;
 		}
 
+		// Capture the heading on the first translating tick, then correct back toward
+		// it.
 		if (targetRadians == null) {
 			targetRadians = currentHeading.getRadians();
 			pid.reset();
@@ -42,8 +47,8 @@ public class HeadingHold {
 		}
 
 		double output = pid.calculate(currentHeading.getRadians(), targetRadians);
-		return MathUtil.clamp(output, -HeadingHoldConstants.kMaxAngularSpeedRadPerSec,
-				HeadingHoldConstants.kMaxAngularSpeedRadPerSec);
+		return MathUtil.clamp(output, -CardinalLockConstants.kMaxAngularSpeedRadPerSec,
+				CardinalLockConstants.kMaxAngularSpeedRadPerSec);
 	}
 
 	public void reset() {

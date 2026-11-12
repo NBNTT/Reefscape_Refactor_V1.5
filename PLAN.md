@@ -1,5 +1,12 @@
 # Lean Drivetrain Plan
 
+## Status
+
+Implemented 2026-11-12: drivetrain-only cleanup, 8BitDo controller abstraction,
+cubic input shaping, Cardinal Lock, light AdvantageScope logging, per-module
+failure detection/coast/freeze/recovery, and 11 passing unit tests.
+Remaining: on-robot gain tuning, simulation model, and push to the target repo.
+
 ## Objective
 
 A small, clear, drivetrain-only Reefscape codebase with:

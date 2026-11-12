@@ -20,10 +20,18 @@ import frc.robot.Constants.ModuleConstants;
 public class SwerveModule implements SwerveModuleIO {
 	private final SparkMax driveMotor;
 	private final SparkMax turningMotor;
+	private final SparkMaxConfig driveConfig;
+	private final SparkMaxConfig turningConfig;
 	private final PIDController turningPidController;
 	private final AnalogInput absoluteEncoder;
 	private final double offsetRadians;
 	private final boolean reversed;
+
+	/**
+	 * Keeps odometry continuous after a module reconnects and its drive encoder is
+	 * re-seeded.
+	 */
+	private double positionOffsetMeters;
 
 	public SwerveModule(int driveMotorId, int turningMotorId, boolean driveMotorReversed, boolean turningMotorReversed,
 			int absoluteEncoderId, double offsetRadians, boolean reversed) {
@@ -34,7 +42,7 @@ public class SwerveModule implements SwerveModuleIO {
 		driveMotor = new SparkMax(driveMotorId, MotorType.kBrushless);
 		turningMotor = new SparkMax(turningMotorId, MotorType.kBrushless);
 
-		SparkMaxConfig driveConfig = new SparkMaxConfig();
+		driveConfig = new SparkMaxConfig();
 		driveConfig.voltageCompensation(12.0);
 		driveConfig.smartCurrentLimit(40);
 		driveConfig.inverted(driveMotorReversed);
@@ -42,7 +50,7 @@ public class SwerveModule implements SwerveModuleIO {
 		driveConfig.encoder.positionConversionFactor(ModuleConstants.kDriveEncoderRot2Meter);
 		driveConfig.encoder.velocityConversionFactor(ModuleConstants.kDriveEncoderRPM2MeterPerSec);
 
-		SparkMaxConfig turningConfig = new SparkMaxConfig();
+		turningConfig = new SparkMaxConfig();
 		turningConfig.voltageCompensation(12.0);
 		turningConfig.smartCurrentLimit(40);
 		turningConfig.inverted(turningMotorReversed);
@@ -60,7 +68,7 @@ public class SwerveModule implements SwerveModuleIO {
 	}
 
 	private double getDrivePosition() {
-		return driveMotor.getEncoder().getPosition();
+		return driveMotor.getEncoder().getPosition() + positionOffsetMeters;
 	}
 
 	private double getDriveVelocity() {
@@ -81,7 +89,44 @@ public class SwerveModule implements SwerveModuleIO {
 	}
 
 	@Override
+	public boolean isHealthy() {
+		var driveFaults = driveMotor.getFaults();
+		var turningFaults = turningMotor.getFaults();
+		return !driveFaults.can && !driveFaults.sensor && !turningFaults.can && !turningFaults.sensor;
+	}
+
+	private void setIdleMode(IdleMode mode) {
+		driveConfig.idleMode(mode);
+		turningConfig.idleMode(mode);
+		driveMotor.configure(driveConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+		turningMotor.configure(turningConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+	}
+
+	@Override
+	public void setCoast() {
+		setIdleMode(IdleMode.kCoast);
+	}
+
+	@Override
+	public void setBrake() {
+		setIdleMode(IdleMode.kBrake);
+	}
+
+	@Override
+	public void recover(SwerveModulePosition lastGoodPosition) {
+		// Start the recovered module where odometry last trusted it, so the pose does
+		// not jump.
+		positionOffsetMeters = lastGoodPosition.distanceMeters;
+		driveMotor.getEncoder().setPosition(0);
+		turningMotor.getEncoder().setPosition(getAbsoluteEncoderAngle());
+		setBrake();
+		driveMotor.clearFaults();
+		turningMotor.clearFaults();
+	}
+
+	@Override
 	public void resetEncoders() {
+		positionOffsetMeters = 0;
 		driveMotor.getEncoder().setPosition(0);
 		turningMotor.getEncoder().setPosition(getAbsoluteEncoderAngle());
 	}

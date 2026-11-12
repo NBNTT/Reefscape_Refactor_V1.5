@@ -40,8 +40,21 @@ Spotless runs automatically before `compileJava` and normalizes Java formatting.
 - Y: toggle field-oriented / robot-oriented
 - Back: reset gyro heading
 
-Field-oriented is the default. Heading hold engages automatically when you
-translate without commanding rotation.
+Field-oriented is the default. Cardinal Lock captures the heading when you begin
+strafing and holds it until you rotate or stop.
+
+## Controller
+
+8BitDo Ultimate Wireless in **XInput mode**, behind `DriveController`. Only the
+left stick, right stick X, right bumper, Y, and Back are bound. Every other
+button is intentionally inert.
+
+## Reliability
+
+Each swerve module checks its REV CAN/sensor faults every loop. On failure it is
+set to coast, its last good position is frozen in odometry, and drive commands
+skip that module. It recovers automatically after 0.5 seconds of stable
+connection, re-seeding its drive position so the pose does not jump.
 
 ## Layout
 
@@ -49,8 +62,9 @@ translate without commanding rotation.
 src/main/java/frc/robot/
   Main, Robot, RobotContainer, Constants
   commands/SwerveTeleOp.java
+  controllers/DriveController.java, EightBitDoController.java
   subsystems/Swerve.java, SwerveModule.java, SwerveModuleIO.java, Odometry.java
-  util/InputShaper.java, HeadingHold.java
+  util/InputShaper.java, CardinalLock.java
 src/test/java/frc/robot/    pure unit tests
 vendordeps/                 AdvantageKit, Phoenix6, REVLib, WPILibNewCommands
 ```

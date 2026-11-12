@@ -13,7 +13,6 @@ public final class Constants {
 	}
 
 	public static final Mode currentMode = RobotBase.isReal() ? Mode.REAL : Mode.SIM;
-	public static final double kLoopPeriodSecs = 0.02;
 
 	public static final class OperatorConstants {
 		public static final int kDriverControllerPort = 0;
@@ -79,17 +78,22 @@ public final class Constants {
 	public static final class InputConstants {
 		public static final double kTranslationDeadband = 0.1;
 		public static final double kRotationDeadband = 0.1;
-		public static final double kExpo = 0.35;
 		public static final double kSlowModeScale = 0.25;
 	}
 
-	public static final class HeadingHoldConstants {
+	/** PID that holds the heading captured when strafing starts. */
+	public static final class CardinalLockConstants {
 		public static final double kP = 4.0;
 		public static final double kI = 0.0;
 		public static final double kD = 0.0;
 		public static final double kMaxAngularSpeedRadPerSec = DriveConstants.kTeleDriveMaxAngularSpeedRadiansPerSecond;
 		public static final double kMinTranslationSpeedMps = 0.05;
 		public static final double kRotationDeadband = InputConstants.kRotationDeadband;
+	}
+
+	public static final class FailureConstants {
+		/** A module must stay healthy this long before it is trusted again. */
+		public static final double kRecoverySeconds = 0.5;
 	}
 
 	public static final class CAN {

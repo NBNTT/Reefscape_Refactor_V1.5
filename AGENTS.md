@@ -26,12 +26,11 @@ module vendor.
 
 ## Current state
 
-- 40 Java files, 3,633 lines before cleanup.
-- No tests.
-- 79 tracked `.wpilog` files in `logs/` (~485 MB) — remove.
-- `SwerveTeleOp` has deadband, slew limiting, slow mode, and a static
-  `Constants.fieldOriented` switch. It has no input shaping, heading hold, or
-  runtime robot-oriented toggle.
+- 14 Java files, ~891 lines.
+- 11 unit tests: cubic shaping, Cardinal Lock, module failure/recovery.
+- 8BitDo controller behind `DriveController`.
+- Per-module CAN/sensor fault handling: coast, freeze odometry, automatic recovery.
+- `SwerveModuleIO` boundary ready for a future CTRE module implementation.
 
 ## Read first
 
