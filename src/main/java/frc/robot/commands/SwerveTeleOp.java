@@ -2,6 +2,7 @@ package frc.robot.commands;
 
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -57,6 +58,12 @@ public class SwerveTeleOp extends Command {
 
 	@Override
 	public void execute() {
+		if (!DriverStation.isEnabled()) {
+			swerve.stopModules();
+			headingHold.reset();
+			return;
+		}
+
 		double xSpeed = InputShaper.shape(xSpdFunction.get(), InputConstants.kTranslationDeadband,
 				InputConstants.kExpo);
 		double ySpeed = InputShaper.shape(ySpdFunction.get(), InputConstants.kTranslationDeadband,
