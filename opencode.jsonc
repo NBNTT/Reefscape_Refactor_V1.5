@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // This is a new lean project. Keep normal build/test work frictionless,
+  // but put a gate in front of deploy and destructive Git commands.
+  "permissions": [
+    { "action": "shell", "resource": "*", "effect": "allow" },
+    { "action": "shell", "resource": "*gradlew deploy*", "effect": "ask" },
+    { "action": "shell", "resource": "git push *", "effect": "ask" },
+    { "action": "shell", "resource": "git push --force *", "effect": "deny" },
+    { "action": "shell", "resource": "git reset --hard *", "effect": "deny" },
+    { "action": "shell", "resource": "git clean *", "effect": "deny" },
+    { "action": "edit", "resource": "build/**", "effect": "deny" },
+    { "action": "edit", "resource": "logs/**", "effect": "deny" },
+    { "action": "edit", "resource": ".git/**", "effect": "deny" }
+  ]
+}
