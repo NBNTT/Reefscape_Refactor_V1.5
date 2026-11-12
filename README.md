@@ -32,6 +32,17 @@ intake, climber, lights, PathPlanner, PhotonVision, autonomous paths.
 
 Spotless runs automatically before `compileJava` and normalizes Java formatting.
 
+## Controls
+
+- Left stick: translate
+- Right stick X: rotate
+- Right bumper: slow mode
+- Y: toggle field-oriented / robot-oriented
+- Back: reset gyro heading
+
+Field-oriented is the default. Heading hold engages automatically when you
+translate without commanding rotation.
+
 ## Layout
 
 ```text
